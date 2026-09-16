@@ -1,6 +1,7 @@
 export interface FeaturedJob {
     id: number;
     title: string;
+    company: string;
     department: string;
     department_id?: number | null;
     location: string;
@@ -16,6 +17,8 @@ export interface FeaturedJob {
     education_requirements?: string[] | null;
     experience_requirements?: string | null;
     other_qualifications?: string | null;
+    jd_file_url?: string | null;
+    jd_file_name?: string | null;
 }
 
 export interface DepartmentCategory {

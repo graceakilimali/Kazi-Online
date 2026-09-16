@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { FeaturedJob } from '@/types';
 import { Link } from '@inertiajs/vue3';
-import { MapPin, Briefcase, Clock, ArrowRight, Building2 } from '@lucide/vue';
+import { MapPin, Clock, ArrowRight, Building2, Briefcase } from '@lucide/vue';
 
 defineProps<{
     job: FeaturedJob;
@@ -11,17 +11,22 @@ defineProps<{
 <template>
     <div class="group flex flex-col justify-between rounded-xl border border-border bg-card p-6 shadow-xs transition-all duration-200 hover:-translate-y-1 hover:border-[#0066cc]/60 hover:shadow-md">
         <div>
-            <!-- Header Badge & Department -->
+            <!-- Header: Company Name & Employment Type -->
             <div class="flex items-center justify-between gap-2">
-                <div class="flex items-center gap-2">
-                    <div class="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-50 text-[#0066cc] dark:bg-blue-950/50 dark:text-blue-400">
+                <div class="flex items-center gap-2 min-w-0">
+                    <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-[#0066cc] dark:bg-blue-950/50 dark:text-blue-400">
                         <Building2 class="h-4 w-4" />
                     </div>
-                    <span class="text-xs font-semibold text-muted-foreground">
-                        {{ job.department }}
-                    </span>
+                    <div class="min-w-0">
+                        <p class="truncate text-xs font-bold text-foreground" :title="job.company">
+                            {{ job.company || 'EATV Group' }}
+                        </p>
+                        <p class="truncate text-[11px] font-medium text-muted-foreground">
+                            {{ job.department }}
+                        </p>
+                    </div>
                 </div>
-                <span class="inline-flex items-center rounded-md border border-blue-500/30 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#0066cc] dark:bg-blue-950/40 dark:text-blue-300">
+                <span class="inline-flex shrink-0 items-center rounded-md border border-blue-500/30 bg-blue-50 px-2.5 py-1 text-xs font-semibold text-[#0066cc] dark:bg-blue-950/40 dark:text-blue-300">
                     {{ job.employmentType }}
                 </span>
             </div>

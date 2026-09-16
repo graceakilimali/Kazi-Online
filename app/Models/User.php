@@ -27,12 +27,48 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
  * @property Carbon|null $created_at
  * @property Carbon|null $updated_at
  */
-#[Fillable(['name', 'email', 'password'])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable implements PasskeyUser
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, PasskeyAuthenticatable, TwoFactorAuthenticatable;
+
+    protected $fillable = [
+        'first_name',
+        'middle_name',
+        'last_name',
+        'email',
+        'password',
+        'phone',
+        'name',
+    ];
+
+    protected $appends = [
+        'name',
+    ];
+
+    /**
+     * Get the user's full name.
+     */
+    public function getNameAttribute(): string
+    {
+        return trim("{$this->first_name} {$this->middle_name} {$this->last_name}");
+    }
+
+    /**
+     * Set the user's name by splitting into first, middle, and last names.
+     */
+    public function setNameAttribute(?string $value): void
+    {
+        if (!$value) {
+            return;
+        }
+
+        $parts = preg_split('/\s+/', trim($value));
+        $this->attributes['first_name'] = array_shift($parts) ?: $value;
+        $this->attributes['last_name'] = !empty($parts) ? array_pop($parts) : ($this->attributes['first_name'] ?? '');
+        $this->attributes['middle_name'] = !empty($parts) ? implode(' ', $parts) : null;
+    }
 
     /**
      * Get the attributes that should be cast.

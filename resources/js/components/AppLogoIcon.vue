@@ -14,7 +14,7 @@ defineProps<Props>();
 
 <template>
     <img
-        src="/images/logo.png"
+        src="/images/logo.png?v=4"
         alt="KaziOnline Logo"
         :class="className"
         v-bind="$attrs"

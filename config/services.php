@@ -35,4 +35,8 @@ return [
         ],
     ],
 
+    'recruitment' => [
+        'base_url' => env('RECRUITMENT_API_URL', 'http://recruitment.localhost.test/api/v1'),
+    ],
+
 ];

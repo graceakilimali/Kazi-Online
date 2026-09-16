@@ -15,7 +15,7 @@ const user = page.props.auth?.user;
             <!-- Brand Logo -->
             <Link href="/" class="flex items-center gap-2.5 group">
                 <img
-                    src="/images/logo.png"
+                    src="/images/logo.png?v=4"
                     alt="KaziOnline Logo"
                     class="h-9 w-9 object-contain rounded-lg transition-transform duration-200 group-hover:scale-105"
                 />

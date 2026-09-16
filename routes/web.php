@@ -9,6 +9,7 @@ Route::get('/', ShowHomeController::class)->name('home');
 
 // Public Jobs routes (Solves 404 at browse all jobs)
 Route::get('/jobs', [JobListingController::class, 'index'])->name('jobs.index');
+Route::get('/jobs/{id}/jd', [JobListingController::class, 'downloadJd'])->name('jobs.jd');
 Route::get('/jobs/{id}', [JobListingController::class, 'show'])->name('jobs.show');
 
 // Public Contact routes

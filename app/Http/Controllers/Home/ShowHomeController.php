@@ -6,62 +6,39 @@ use App\Data\DepartmentData;
 use App\Data\HomeStatsData;
 use App\Data\JobPostingData;
 use App\Http\Controllers\Controller;
-use App\Models\Department;
-use App\Models\JobPosting;
-use Illuminate\Http\Request;
+use App\Services\RecruitmentApiService;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 class ShowHomeController extends Controller
 {
-    /**
-     * Handle the incoming request.
-     */
-    public function __invoke(Request $request): Response
+    public function __construct(
+        protected RecruitmentApiService $apiService
+    ) {}
+
+    public function __invoke(): Response
     {
-        try {
-            $featuredJobs = JobPosting::with('department')
-                ->active()
-                ->orderBy('published_at', 'desc')
-                ->take(6)
-                ->get();
+        $response = $this->apiService->getJobs(['per_page' => 6]);
+        $rawJobs = $response['data'] ?? [];
+        $rawCategories = $this->apiService->getCategories();
 
-            $departments = Department::withCount(['jobs as published_jobs_count' => function ($query) {
-                $query->where('status', 'published')
-                    ->where(function ($q) {
-                        $q->whereNull('application_deadline')
-                          ->orWhere('application_deadline', '>=', now()->toDateString());
-                    });
-            }])
-            ->orderBy('name')
-            ->get();
+        $featuredJobs = array_map(fn ($j) => JobPostingData::fromApiArray($j)->toArray(), $rawJobs);
+        $departments = array_map(fn ($d) => DepartmentData::fromApiArray($d)->toArray(), $rawCategories);
 
-            $stats = new HomeStatsData(
-                totalOpenings: JobPosting::active()->count(),
-                totalDepartments: $departments->count(),
-                companiesCount: 3,
-            );
+        $stats = new HomeStatsData(
+            totalOpenings: (int) ($response['meta']['total'] ?? count($featuredJobs)),
+            totalDepartments: count($departments),
+            companiesCount: count($this->apiService->getCompanies()) ?: 3,
+        );
 
-            return Inertia::render('Home', [
-                'featuredJobs' => [
-                    'data' => JobPostingData::collect($featuredJobs),
-                ],
-                'departments' => [
-                    'data' => DepartmentData::collect($departments),
-                ],
-                'stats' => $stats->toArray(),
-            ]);
-        } catch (Throwable $e) {
-            return Inertia::render('Home', [
-                'featuredJobs' => ['data' => []],
-                'departments' => ['data' => []],
-                'stats' => [
-                    'totalOpenings' => 0,
-                    'totalDepartments' => 0,
-                    'companiesCount' => 3,
-                ],
-            ]);
-        }
+        return Inertia::render('Home', [
+            'featuredJobs' => [
+                'data' => $featuredJobs,
+            ],
+            'departments' => [
+                'data' => $departments,
+            ],
+            'stats' => $stats->toArray(),
+        ]);
     }
 }

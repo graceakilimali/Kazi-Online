@@ -22,8 +22,3 @@ export type Passkey = {
     last_used_at_diff: string | null;
 };
 
-export type TwoFactorConfigContent = {
-    title: string;
-    description: string;
-    buttonText: string;
-};

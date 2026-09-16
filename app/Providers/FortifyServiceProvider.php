@@ -32,6 +32,19 @@ class FortifyServiceProvider extends ServiceProvider
         $this->configureActions();
         $this->configureViews();
         $this->configureRateLimiting();
+        // Obtain Sanctum Bearer Token upon candidate login
+        Fortify::authenticateUsing(function (Request $request) {
+            $user = \App\Models\User::where('email', $request->email)->first();
+            if ($user && \Illuminate\Support\Facades\Hash::check($request->password, $user->password)) {
+                $apiService = app(\App\Services\RecruitmentApiService::class);
+                $response = $apiService->loginApplicant($request->email, $request->password);
+                if ($response && !empty($response['token'])) {
+                    session(['recruitment_token' => $response['token']]);
+                }
+                return $user;
+            }
+            return null;
+        });
     }
 
     /**
@@ -70,9 +83,6 @@ class FortifyServiceProvider extends ServiceProvider
         Fortify::registerView(fn () => Inertia::render('auth/Register', [
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
         ]));
-
-        Fortify::twoFactorChallengeView(fn () => Inertia::render('auth/TwoFactorChallenge'));
-
     }
 
     /**

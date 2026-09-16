@@ -28,11 +28,14 @@ const { isMobile, state } = useSidebar();
                 <DropdownMenuTrigger as-child>
                     <SidebarMenuButton
                         size="lg"
-                        class="data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground"
+                        :class="[
+                            'data-[state=open]:bg-sidebar-accent data-[state=open]:text-sidebar-accent-foreground transition-all cursor-pointer',
+                            state === 'collapsed' ? 'justify-center px-0' : ''
+                        ]"
                         data-test="sidebar-menu-button"
                     >
-                        <UserInfo :user="user" />
-                        <ChevronsUpDown class="ml-auto size-4" />
+                        <UserInfo :user="user" :collapsed="state === 'collapsed'" />
+                        <ChevronsUpDown v-if="state === 'expanded'" class="ml-auto size-4 shrink-0 text-muted-foreground" />
                     </SidebarMenuButton>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
@@ -41,7 +44,7 @@ const { isMobile, state } = useSidebar();
                         isMobile
                             ? 'bottom'
                             : state === 'collapsed'
-                              ? 'left'
+                              ? 'right'
                               : 'bottom'
                     "
                     align="end"

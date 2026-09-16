@@ -22,4 +22,14 @@ class DepartmentData extends BaseData
             openPositionsCount: (int) ($department->published_jobs_count ?? 0),
         );
     }
+
+    public static function fromApiArray(array $dept): self
+    {
+        return new self(
+            id: (int) ($dept['id'] ?? 0),
+            name: $dept['name'] ?? $dept['department_name'] ?? 'Department',
+            description: $dept['description'] ?? null,
+            openPositionsCount: (int) ($dept['published_jobs_count'] ?? $dept['open_positions_count'] ?? 0),
+        );
+    }
 }

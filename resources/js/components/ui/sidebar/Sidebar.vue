@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import type { HTMLAttributes } from 'vue';
 import { cn } from '@/lib/utils';
-import { useSidebar } from './utils';
+import { computed } from 'vue';
+import { X } from '@lucide/vue';
+import { useSidebar, SIDEBAR_WIDTH, SIDEBAR_WIDTH_ICON } from './utils';
 
 const props = withDefaults(
     defineProps<{
@@ -13,51 +15,90 @@ const props = withDefaults(
     {
         side: 'left',
         variant: 'sidebar',
-        collapsible: 'offcanvas',
+        collapsible: 'icon',
     },
 );
 
 const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+
+const isCollapsed = computed(() => state.value === 'collapsed');
+
+const desktopWidth = computed(() => {
+    if (props.collapsible === 'none') return SIDEBAR_WIDTH;
+    if (props.collapsible === 'offcanvas') {
+        return isCollapsed.value ? '0px' : SIDEBAR_WIDTH;
+    }
+    // icon mode: 3.5rem (56px) when collapsed, 16rem (256px) when expanded
+    return isCollapsed.value ? '3.5rem' : SIDEBAR_WIDTH;
+});
 </script>
 
 <template>
+    <!-- Desktop Sidebar -->
     <div
-        class="group peer hidden md:block text-sidebar-foreground"
+        v-if="!isMobile"
+        class="group peer text-sidebar-foreground shrink-0 select-none hidden md:block"
         :data-state="state"
-        :data-collapsible="state === 'collapsed' ? collapsible : ''"
+        :data-collapsible="isCollapsed ? collapsible : ''"
         :data-variant="variant"
         :data-side="side"
     >
+        <!-- Layout Spacer to push main content correctly and prevent overlap -->
+        <div
+            class="relative h-svh bg-transparent transition-[width] duration-200 ease-in-out shrink-0"
+            :style="{ width: desktopWidth }"
+        />
+
+        <!-- Fixed Sidebar Content -->
         <div
             :class="
                 cn(
-                    'relative h-svh w-[--sidebar-width] bg-transparent transition-[width] ease-linear',
-                    'group-data-[collapsible=offcanvas]:w-0',
-                    'group-data-[side=right]:rotate-180',
-                    variant === 'floating' || variant === 'inset'
-                        ? 'group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4))]'
-                        : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon]',
+                    'fixed inset-y-0 z-20 flex h-svh flex-col border-r border-sidebar-border bg-sidebar transition-[width,left,right] duration-200 ease-in-out',
+                    side === 'left' ? 'left-0' : 'right-0',
+                    props.class,
                 )
             "
+            :style="{ width: desktopWidth }"
+        >
+            <div
+                data-sidebar="sidebar"
+                class="flex h-full w-full flex-col overflow-hidden"
+            >
+                <slot />
+            </div>
+        </div>
+    </div>
+
+    <!-- Mobile Drawer Overlay -->
+    <div v-else>
+        <!-- Backdrop -->
+        <div
+            v-if="openMobile"
+            class="fixed inset-0 z-40 bg-black/50 backdrop-blur-xs transition-opacity duration-200"
+            @click="setOpenMobile(false)"
         />
+
+        <!-- Mobile Drawer -->
         <div
             :class="
                 cn(
-                    'fixed inset-y-0 z-10 hidden h-svh w-[--sidebar-width] transition-[left,right,width] ease-linear md:flex',
-                    side === 'left'
-                        ? 'left-0 group-data-[collapsible=offcanvas]:left-[calc(var(--sidebar-width)*-1)]'
-                        : 'right-0 group-data-[collapsible=offcanvas]:right-[calc(var(--sidebar-width)*-1)]',
-                    variant === 'floating' || variant === 'inset'
-                        ? 'p-2 group-data-[collapsible=icon]:w-[calc(var(--sidebar-width-icon)_+_theme(spacing.4)_+2px)]'
-                        : 'group-data-[collapsible=icon]:w-[--sidebar-width-icon] group-data-[side=left]:border-r group-data-[side=right]:border-l',
+                    'fixed inset-y-0 left-0 z-50 flex h-full w-72 flex-col bg-sidebar shadow-2xl transition-transform duration-200 ease-in-out border-r border-sidebar-border',
+                    openMobile ? 'translate-x-0' : '-translate-x-full',
                     props.class,
                 )
             "
         >
-            <div
-                data-sidebar="sidebar"
-                class="flex h-full w-full flex-col bg-sidebar group-data-[variant=floating]:rounded-lg group-data-[variant=floating]:border group-data-[variant=floating]:border-sidebar-border group-data-[variant=floating]:shadow"
-            >
+            <div class="flex items-center justify-between p-3 border-b border-sidebar-border">
+                <span class="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Menu</span>
+                <button
+                    @click="setOpenMobile(false)"
+                    class="p-1 rounded-md text-neutral-500 hover:text-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors"
+                    title="Close"
+                >
+                    <X class="size-5" />
+                </button>
+            </div>
+            <div class="flex-1 overflow-y-auto">
                 <slot />
             </div>
         </div>

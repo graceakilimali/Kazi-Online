@@ -54,6 +54,63 @@ class JobPosting extends Model
         return $this->belongsTo(Department::class, 'department_id');
     }
 
+    public function getEffectiveCompanyNameAttribute(): string
+    {
+        $companies = [
+            1 => 'East Africa Television (EATV)',
+            2 => 'Independent Television (ITV)',
+            3 => 'The Guardian LTD (TGL)',
+        ];
+
+        return $companies[$this->company_id] ?? 'East Africa Television Ltd (EATV)';
+    }
+
+    public function getEffectiveTopResponsibilitiesAttribute(): array
+    {
+        if (!empty($this->top_responsibilities)) {
+            return is_array($this->top_responsibilities)
+                ? $this->top_responsibilities
+                : (json_decode($this->top_responsibilities, true) ?: []);
+        }
+
+        return [];
+    }
+
+    public function getEffectiveSkillsRequirementsAttribute(): array
+    {
+        if (!empty($this->skills_requirements)) {
+            return is_array($this->skills_requirements)
+                ? $this->skills_requirements
+                : (json_decode($this->skills_requirements, true) ?: []);
+        }
+
+        return [];
+    }
+
+    public function getEffectiveEducationRequirementsAttribute(): array|string
+    {
+        if (!empty($this->education_requirements)) {
+            return $this->education_requirements;
+        }
+
+        return [];
+    }
+
+    public function getEffectiveExperienceRequirementsAttribute(): ?string
+    {
+        return !empty($this->experience_requirements) ? (string) $this->experience_requirements : null;
+    }
+
+    public function getEffectiveOtherQualificationsAttribute(): ?string
+    {
+        return !empty($this->other_qualifications) ? (string) $this->other_qualifications : null;
+    }
+
+    public function getEffectiveJdFileAttribute(): ?string
+    {
+        return !empty($this->jd_file) ? (string) $this->jd_file : null;
+    }
+
     public function scopePublished($query)
     {
         return $query->where('status', 'published');

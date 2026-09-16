@@ -6,145 +6,93 @@ use App\Data\DepartmentData;
 use App\Data\JobFilterData;
 use App\Data\JobPostingData;
 use App\Http\Controllers\Controller;
-use App\Models\Department;
-use App\Models\JobPosting;
+use App\Services\RecruitmentApiService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
-use Throwable;
 
 class JobListingController extends Controller
 {
+    public function __construct(
+        protected RecruitmentApiService $apiService
+    ) {}
+
     /**
-     * Display a listing of active jobs with filters.
+     * Display the job exploration page.
      */
     public function index(Request $request): Response
     {
-        try {
-            $filters = JobFilterData::fromRequest($request);
-            $query = JobPosting::with('department')->active();
+        $filters = JobFilterData::fromRequest($request);
+        $queryParams = array_filter([
+            'search' => $filters->search,
+            'department_id' => $filters->department_id,
+            'employment_type' => !empty($filters->employment_type) ? implode(',', (array) $filters->employment_type) : null,
+            'location' => $filters->location,
+            'page' => $request->get('page', 1),
+            'per_page' => 12,
+        ]);
 
-            // Keyword Search (Title or Description)
-            if ($filters->search) {
-                $search = $filters->search;
-                $query->where(function ($q) use ($search) {
-                    $q->where('title', 'like', "%{$search}%")
-                      ->orWhere('description', 'like', "%{$search}%")
-                      ->orWhere('requirements', 'like', "%{$search}%");
-                });
-            }
+        $response = $this->apiService->getJobs($queryParams);
+        $rawJobs = $response['data'] ?? [];
+        $meta = $response['meta'] ?? ['total' => 0, 'current_page' => 1, 'last_page' => 1, 'per_page' => 12];
 
-            // Department Filter
-            if ($filters->department_id) {
-                $query->where('department_id', $filters->department_id);
-            }
+        $jobsList = array_map(fn ($j) => JobPostingData::fromApiArray($j)->toArray(), $rawJobs);
+        $departments = array_map(fn ($d) => DepartmentData::fromApiArray($d)->toArray(), $this->apiService->getCategories());
+        $companies = $this->apiService->getCompanies();
 
-            // Employment Type Filter
-            if (!empty($filters->employment_type)) {
-                $normalizedTypes = array_filter(array_map('trim', $filters->employment_type));
-                if (!empty($normalizedTypes)) {
-                    $query->where(function ($q) use ($normalizedTypes) {
-                        foreach ($normalizedTypes as $type) {
-                            $cleanType = str_replace('_', ' ', strtolower($type));
-                            $q->orWhereRaw('LOWER(REPLACE(employment_type, "_", " ")) LIKE ?', ["%{$cleanType}%"]);
-                        }
-                    });
-                }
-            }
-
-            // Location Filter
-            if ($filters->location) {
-                $query->where('location', $filters->location);
-            }
-
-            // Posted Within Filter (days)
-            if ($filters->posted_within) {
-                $days = (int) $filters->posted_within;
-                if ($days > 0) {
-                    $query->where('published_at', '>=', now()->subDays($days));
-                }
-            }
-
-            // Sort order
-            if ($filters->sort === 'oldest') {
-                $query->orderBy('published_at', 'asc');
-            } elseif ($filters->sort === 'title') {
-                $query->orderBy('title', 'asc');
-            } else {
-                $query->orderBy('published_at', 'desc');
-            }
-
-            $jobsPaginated = $query->paginate(12)->withQueryString();
-
-            $departments = Department::withCount(['jobs as published_jobs_count' => function ($q) {
-                $q->where('status', 'published')
-                  ->where(function ($sub) {
-                      $sub->whereNull('application_deadline')
-                          ->orWhere('application_deadline', '>=', now()->toDateString());
-                  });
-            }])->orderBy('name')->get();
-
-            $locations = JobPosting::active()
-                ->whereNotNull('location')
-                ->where('location', '!=', '')
-                ->distinct()
-                ->pluck('location');
-
-            // Format jobs data using JobPostingData
-            $jobsData = $jobsPaginated->through(fn ($job) => JobPostingData::fromModel($job)->toArray());
-
-            return Inertia::render('Jobs/Index', [
-                'jobs' => $jobsData,
-                'departments' => DepartmentData::collect($departments),
-                'locations' => $locations,
-                'filters' => $filters->toArray(),
-            ]);
-        } catch (Throwable $e) {
-            return Inertia::render('Jobs/Index', [
-                'jobs' => [
-                    'data' => [],
-                    'total' => 0,
-                    'current_page' => 1,
-                    'last_page' => 1,
-                    'links' => [],
-                ],
-                'departments' => [],
-                'locations' => [],
-                'filters' => [
-                    'search' => '',
-                    'department_id' => '',
-                    'employment_type' => [],
-                    'location' => '',
-                    'posted_within' => '',
-                    'sort' => 'latest',
-                ],
-            ]);
+        $locations = collect($rawJobs)->pluck('location')->filter()->unique()->values()->all();
+        if (empty($locations)) {
+            $locations = ['Dar es Salaam, Tanzania', 'Mikocheni, Dar es Salaam', 'Arusha Region, Tanzania'];
         }
+
+        return Inertia::render('Jobs/Index', [
+            'jobs' => [
+                'data' => $jobsList,
+                'total' => (int) ($meta['total'] ?? count($jobsList)),
+                'current_page' => (int) ($meta['current_page'] ?? 1),
+                'last_page' => (int) ($meta['last_page'] ?? 1),
+                'links' => [],
+                'from' => 1,
+                'to' => count($jobsList),
+            ],
+            'departments' => $departments,
+            'companies' => $companies,
+            'locations' => $locations,
+            'filters' => $filters->toArray(),
+        ]);
     }
 
     /**
-     * Display a specific job posting.
+     * Display a single job details page.
      */
-    public function show(int|string $id): Response
+    public function show(int $id): Response
     {
-        try {
-            $job = JobPosting::with('department')->findOrFail($id);
+        $jobRaw = $this->apiService->getJob($id);
 
-            $relatedJobs = JobPosting::with('department')
-                ->active()
-                ->where('id', '!=', $job->id)
-                ->where('department_id', $job->department_id)
-                ->take(3)
-                ->get();
-
-            return Inertia::render('Jobs/Show', [
-                'job' => JobPostingData::fromModel($job)->toArray(),
-                'relatedJobs' => [
-                    'data' => JobPostingData::collect($relatedJobs),
-                ],
-            ]);
-        } catch (Throwable $e) {
-            abort(404, 'Job posting not found');
+        if (!$jobRaw) {
+            abort(404, 'Job not found or is no longer active.');
         }
+
+        $jobData = JobPostingData::fromApiArray($jobRaw)->toArray();
+
+        // Fetch related jobs in same department
+        $relatedResponse = $this->apiService->getJobs([
+            'department_id' => $jobRaw['department_id'] ?? null,
+            'per_page' => 4,
+        ]);
+
+        $relatedJobs = collect($relatedResponse['data'] ?? [])
+            ->filter(fn ($j) => (int) $j['id'] !== $id)
+            ->take(3)
+            ->map(fn ($j) => JobPostingData::fromApiArray($j)->toArray())
+            ->values()
+            ->all();
+
+        return Inertia::render('Jobs/Show', [
+            'job' => $jobData,
+            'relatedJobs' => [
+                'data' => $relatedJobs,
+            ],
+        ]);
     }
 }

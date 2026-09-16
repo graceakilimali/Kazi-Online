@@ -30,8 +30,18 @@ const emits = defineEmits<{
 const isMobile = useMediaQuery('(max-width: 768px)');
 const openMobile = ref(false);
 
+const getInitialOpen = () => {
+    if (typeof document !== 'undefined') {
+        const match = document.cookie.match(new RegExp(`(?:^|; )${SIDEBAR_COOKIE_NAME}=([^;]*)`));
+        if (match) {
+            return match[1] === 'true';
+        }
+    }
+    return props.defaultOpen;
+};
+
 const open = useVModel(props, 'open', emits, {
-    defaultValue: props.defaultOpen,
+    defaultValue: getInitialOpen(),
     passive: (props.open === undefined) as false,
 }) as Ref<boolean>;
 
